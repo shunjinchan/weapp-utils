@@ -2,7 +2,7 @@
  * @Author: shunjinchan
  * @Date: 2018-10-03 07:18:38
  * @Last Modified by: shunjinchan
- * @Last Modified time: 2018-10-03 20:44:24
+ * @Last Modified time: 2018-10-04 15:35:03
  * 全局状态管理
  * 目的：同步一下全局变量所绑定的视图
  * 为什么要加找个模块：
@@ -19,19 +19,23 @@ const subs = [] // 页面对象数组
 
 /**
  * 更新 state
- * @param {object} origin state
+ * @param {object} object state
  * @param {string} path state path
- * @param {any} val val
+ * @param {any} value val
  */
-const updateByPath = (origin, path, val) => {
+const updateByPath = (object, path, value) => {
   let arr = path.replace(/\[|(].)|\]/g, '.').split('.')
-  let current = origin
+  let current = object
 
   if (arr[arr.length - 1] === '') arr.pop() // 处理空白字符
+  // 要求在创建实例之前，就声明所有的根级属性
+  if (!object.hasOwnProperty(arr[0])) {
+    throw new Error('setState 方法只允许设置初始化 store 中的第一级已提前定义好的数据')
+  }
 
   for (let i = 0, len = arr.length; i < len; i++) {
     if (i === len - 1) {
-      current[arr[i]] = JSON.parse(JSON.stringify(val))
+      current[arr[i]] = JSON.parse(JSON.stringify(value))
     } else {
       current = current[arr[i]]
     }
@@ -43,8 +47,9 @@ const updateByPath = (origin, path, val) => {
  * @param {object} ctx 小程序页面对象
  * @param {object} state 全局状态
  */
-const syncState = (ctx, state) => {
+const setState = (ctx, state) => {
   const data = {}
+  // 多次调用 setData 合并为一次
   Object.keys(state).forEach(key => {
     Object.assign(data, { [key]: JSON.parse(JSON.stringify(state[key])) })
   })
@@ -70,7 +75,7 @@ export default class Store {
     if (ctx && !ctx.data.__linkId__) {
       subs.push(ctx)
       ctx.setData({ __linkId__: linkId++ })
-      subs.forEach(ctx => syncState(ctx, state)) // 同步各页面的状态
+      subs.forEach(ctx => setState(ctx, state)) // 同步各页面的状态
     }
   }
 
@@ -82,20 +87,30 @@ export default class Store {
     subs.forEach((sub, index) => {
       if (ctx.data.__linkId__ === sub.data.__linkId__) {
         subs.splice(index, 1)
+        ctx.setData({ __linkId__: null })
       }
     })
   }
 
   /**
    * 更新状态，想要更新全局对象，必须通过 setState 方法
-   * @param {string} path 状态路径
-   * @param {any} val 状态值
+   * @param {object} param
    */
-  setState (path, val) {
-    if (path !== undefined && val !== undefined && typeof path === 'string') {
-      console.log(`set「${path}」state: `, val)
-      updateByPath(state, path, val) // 更新全局 state，保证新的页面关联时能够得到最新的 state
-      subs.forEach(ctx => ctx.setData({ [path]: val })) // 同步各页面的状态
-    }
+  setState (param) {
+    Object.keys(param).forEach((key) => {
+      const path = key
+      const value = param[key]
+      if (
+        path !== undefined &&
+        value !== undefined &&
+        typeof path === 'string'
+      ) {
+        console.log(`set「${path}」state: `, value)
+        updateByPath(state, path, value) // 更新全局 state，保证新的页面关联时能够得到最新的 state
+      } else {
+        delete param[path]
+      }
+    })
+    subs.forEach(ctx => setState(ctx, param)) // 同步各页面的状态
   }
 }
