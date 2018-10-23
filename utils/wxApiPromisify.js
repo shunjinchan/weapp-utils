@@ -1,11 +1,11 @@
 /*
- * @Author: shunjinchan 
- * @Date: 2018-09-25 17:14:51 
- * @Last Modified by:   shunjinchan 
- * @Last Modified time: 2018-09-25 17:14:51 
+ * @Author: shunjinchan
+ * @Date: 2018-09-25 17:14:51
+ * @Last Modified by: shunjinchan
+ * @Last Modified time: 2018-10-13 16:31:16
  */
 
- const noPromisifyMethods = [
+const noPromisifyMethods = [
   'stopRecord',
   'stopVoice',
   'stopBackgroundAudio',
@@ -37,9 +37,7 @@
 
 const arrToObj = arr => {
   let obj = {}
-  arr.forEach(val => {
-    obj[val] = 1
-  })
+  arr.forEach(val => (obj[val] = 1)) // val 设置为 1，作为不需要 promisify 化的标识
   return obj
 }
 
@@ -62,6 +60,11 @@ const promisify = method => {
   }
 }
 
+/**
+ * 判断方法是否需要 promisify
+ * @param {string} methodName
+ * @param {obejct} methods
+ */
 const shouldPromisify = (methodName, methods) => {
   const noPromisifyMethodsRe = /^(on)|^(pause)|(Sync)$|(Manager)$/g
   return !(noPromisifyMethodsRe.test(methodName) || methods[methodName] === 1)
